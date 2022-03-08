@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "sqlserver"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+// NOTE -- Currently omitting post, section
+
+// -------
+
+model Agency {
+  id      Int       @id @default(autoincrement())
+  name    String
+  acronym String    @db.VarChar(16)
+  logoUrl String?   @unique
+  Project Project[]
+}
+
+model Language {
+  id                         Int                          @id @default(autoincrement())
+  name                       String
+  ProjectLanguageRequirement ProjectLanguageRequirement[]
+}
+
+model LanguageProficiency {
+  id                         Int                          @id @default(autoincrement())
+  name                       String
+  ProjectLanguageRequirement ProjectLanguageRequirement[]
+}
+
+model ProjectLanguageRequirement {
+  id                    Int                 @id @default(autoincrement())
+  Project               Project             @relation(fields: [projectId], references: [id])
+  projectId             Int
+  language              Language            @relation(fields: [languageId], references: [id])
+  languageId            Int
+  languageProficiency   LanguageProficiency @relation(fields: [languageProficiencyId], references: [id])
+  languageProficiencyId Int
+}
+
+model ProjectSkill {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model StateDeptOffice {
+  id         Int       @id @default(autoincrement())
+  name       String
+  breadcrumb String
+  Project    Project[]
+}
+
+model Post {
+  id      Int       @id @default(autoincrement())
+  name    String
+  Project Project[]
+}
+
+model Country {
+  id          Int       @id @default(autoincrement())
+  name        String
+  countryCode String    @db.VarChar(16)
+  Project     Project[]
+}
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isPublished Boolean  @default(false)
+  author      Admin    @relation(fields: [authorId], references: [id])
+  authorId    Int
+}
+
+model Profile {
+  id     Int     @id @default(autoincrement())
+  bio    String?
+  user   User    @relation(fields: [userId], references: [id])
+  userId Int     @unique
+}
+
+model User {
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
+  phoneNumber String?
+  role        String
+  profile     Profile?
+  Mentor      Mentor?
+  Admin       Admin?
+  Project     Project[]
+}
+
+model Admin {
+  id           Int            @id @default(autoincrement())
+  user         User           @relation(fields: [userId], references: [id])
+  userId       Int            @unique
+  Announcement Announcement[]
+}
+
+model Mentor {
+  id             Int              @id @default(autoincrement())
+  user           User             @relation(fields: [userId], references: [id])
+  userId         Int              @unique
+  ProjectMentors ProjectMentors[]
+}
+
+model CyclePeriod {
+  id      Int       @id @default(autoincrement())
+  name    String    @unique
+  Project Project[]
+}
+
+/// Open, Draft, Deleted
+model ProjectStatus {
+  id      Int       @id @default(autoincrement())
+  name    String    @unique
+  Project Project[]
+}
+
+// NOTE -- for information on explicit many-to-many with Prisma, see
+// https://www.prisma.io/docs/concepts/components/prisma-schema/relations/troubleshooting-relations#how-to-use-a-relation-table-with-a-many-to-many-relationship
+// NOTE -- There are some limitations with syntax when dealing with MS SQL Server:
+// https://www.prisma.io/docs/concepts/components/prisma-schema/relations/referential-actions/special-rules-for-referential-actions
+model ProjectMentors {
+  project   Project @relation(fields: [projectId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  projectId Int
+  mentor    Mentor  @relation(fields: [mentorId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  mentorId  Int
+
+  @@id([projectId, mentorId])
+}
+
+model Project {
+  id                    Int                          @id @default(autoincrement())
+  projectCode           String                       @unique
+  isPublished           Boolean
+  languageRequirements  ProjectLanguageRequirement[]
+  country               Country                      @relation(fields: [countryId], references: [id])
+  countryId             Int
+  title                 String                       @unique
+  slug                  String?                      @unique
+  summary               String
+  description           String
+  agency                Agency                       @relation(fields: [agencyId], references: [id])
+  agencyId              Int
+  stateDeptOffice       StateDeptOffice?             @relation(fields: [stateDeptOfficeId], references: [id])
+  stateDeptOfficeId     Int?
+  createdAt             DateTime
+  updatedAt             DateTime                     @updatedAt()
+  isExcludedFromReports Boolean                      @default(false)
+  cyclePeriod           CyclePeriod                  @relation(fields: [cyclePeriodId], references: [id])
+  cyclePeriodId         Int
+  projectStatus         ProjectStatus                @relation(fields: [projectStatusId], references: [id])
+  projectStatusId       Int
+  post                  Post?                        @relation(fields: [postId], references: [id])
+  postId                Int?
+  author                User                         @relation(fields: [authorId], references: [id])
+  authorId              Int
+  // mentors               Mentor[]
+  ProjectMentors        ProjectMentors[]
+}
